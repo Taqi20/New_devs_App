@@ -2,6 +2,30 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
 
+
+async def property_belongs_to_tenant(property_id: str, tenant_id: str) -> bool:
+    """Return whether a property is owned by the requesting tenant."""
+    from sqlalchemy import text
+    from app.core.database_pool import db_pool
+
+    if db_pool.session_factory is None:
+        await db_pool.initialize()
+
+    if db_pool.session_factory is None:
+        raise RuntimeError("Database pool not available")
+
+    async with db_pool.get_session() as session:
+        result = await session.execute(
+            text("""
+                SELECT 1
+                FROM properties
+                WHERE id = :property_id AND tenant_id = :tenant_id
+                LIMIT 1
+            """),
+            {"property_id": property_id, "tenant_id": tenant_id},
+        )
+        return result.scalar_one_or_none() is not None
+
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
     Calculates revenue for a specific month.
